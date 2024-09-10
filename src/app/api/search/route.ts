@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { createPool } from '@vercel/postgres';
+
+const pool = createPool({
+  connectionString: process.env.fndlwr_URL,
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -7,7 +11,7 @@ export async function GET(request: Request) {
   const location = searchParams.get('location') || '';
 
   try {
-    const result = await sql`
+    const result = await pool.sql`
       SELECT id, name, specialty, location, imageurl
       FROM lawyer 
       WHERE (name ILIKE ${`%${query}%`} OR specialty ILIKE ${`%${query}%`})
