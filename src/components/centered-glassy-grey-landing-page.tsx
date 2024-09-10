@@ -1,23 +1,45 @@
 'use client'
 
-import { useState } from "react"
-import Image from "next/image"
-import { Search, MapPin, ArrowRight, Check, Menu } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect, useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Menu } from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
 
-type Lawyer = {
-  id: number;
-  name: string;
-  specialty: string;
-  location: string;
-  imageurl: string;
+interface Lawyer {
+  id: number
+  name: string
+  specialty: string
+  location: string
+  imageurl: string
 }
+
+const getImageSrc = (imageUrl: string) => {
+  if (!imageUrl) return '/default-lawyer-image.jpg';
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
+  return `/lawyer-images/${imageUrl}`;
+};
 
 export function CenteredGlassyGreyLandingPage() {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('')
   const [searchResults, setSearchResults] = useState<Lawyer[]>([])
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const suggestionRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setSuggestions([])
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const handleSearch = async () => {
     try {
@@ -31,6 +53,35 @@ export function CenteredGlassyGreyLandingPage() {
       console.error('Error searching lawyers:', error)
       setSearchResults([])
     }
+  }
+
+  const fetchSuggestions = async (input: string) => {
+    if (input.length < 2) {
+      setSuggestions([])
+      return
+    }
+    try {
+      const response = await fetch(`/api/suggestions?query=${encodeURIComponent(input)}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch suggestions')
+      }
+      const data = await response.json()
+      setSuggestions(data)
+    } catch (error) {
+      console.error('Error fetching suggestions:', error)
+      setSuggestions([])
+    }
+  }
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setQuery(value)
+    fetchSuggestions(value)
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion)
+    setSuggestions([])
   }
 
   return (
@@ -55,107 +106,75 @@ export function CenteredGlassyGreyLandingPage() {
           </nav>
         </header>
 
-        <main className="container mx-auto px-4 py-20">
-          <div className="max-w-[60%] mx-auto bg-white/80 backdrop-blur-md rounded-lg shadow-lg p-8">
-            <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Find Your Perfect Legal Match</h1>
-              <p className="text-xl text-gray-600 mb-8">Connect with top-rated lawyers tailored to your needs</p>
-            </div>
-
-            <div className="max-w-3xl mx-auto bg-white/60 rounded-lg p-2 shadow-lg">
-              <div className="flex flex-col md:flex-row">
-                <div className="flex-grow flex items-center bg-white/80 rounded-lg p-2 mb-2 md:mb-0 md:mr-2 shadow-sm">
-                  <Search className="text-gray-500 mr-2" />
-                  <Input 
-                    className="bg-transparent border-none text-gray-800 placeholder-gray-500" 
-                    placeholder="Legal issue or lawyer name" 
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-                <div className="flex-grow flex items-center bg-white/80 rounded-lg p-2 mb-2 md:mb-0 md:mr-2 shadow-sm">
-                  <MapPin className="text-gray-500 mr-2" />
-                  <Input 
-                    className="bg-transparent border-none text-gray-800 placeholder-gray-500" 
-                    placeholder="Location" 
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  className="bg-gray-800 text-white hover:bg-gray-900 shadow-sm"
-                  onClick={handleSearch}
-                >
-                  Search
-                  <ArrowRight className="ml-2" />
-                </Button>
+        <main className="container mx-auto px-4 py-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-center text-gray-800 mb-8">
+            Find the Right Lawyer for You
+          </h1>
+          <div className="max-w-3xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+              <div className="flex-grow relative w-full md:w-2/5">
+                <Input
+                  type="text"
+                  placeholder="Search by name or specialty"
+                  value={query}
+                  onChange={handleQueryChange}
+                  className="w-full"
+                />
+                {suggestions.length > 0 && (
+                  <div 
+                    ref={suggestionRef} 
+                    className="absolute z-10 w-full bg-white/80 backdrop-blur-sm border border-gray-300 mt-1 rounded-md shadow-lg"
+                  >
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-2 hover:bg-gray-100/80 cursor-pointer text-gray-800"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+              <Input
+                type="text"
+                placeholder="Location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="flex-grow w-full md:w-2/5"
+              />
+              <Button 
+                onClick={handleSearch} 
+                className="w-full md:w-1/5 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Search
+              </Button>
             </div>
 
-            {/* Display search results */}
             {searchResults.length > 0 && (
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Search Results</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {searchResults.map((lawyer) => (
-                    <div key={lawyer.id} className="bg-white/80 rounded-lg p-4 shadow-md">
-                      <div className="mb-4 relative h-48 w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {searchResults.map((lawyer) => (
+                  <Link href={`/lawyer/${lawyer.id}`} key={lawyer.id}>
+                    <div className="rounded-lg shadow-md overflow-hidden transition-transform hover:scale-105 cursor-pointer">
+                      <div className="relative h-48">
                         <Image
-                          src={`/lawyer-images/${lawyer.imageurl}`}
+                          src={getImageSrc(lawyer.imageurl)}
                           alt={lawyer.name}
                           layout="fill"
                           objectFit="cover"
-                          className="rounded-md"
                         />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-800">{lawyer.name}</h3>
-                      <p className="text-gray-600">{lawyer.specialty}</p>
-                      <p className="text-gray-600">{lawyer.location}</p>
+                      <div className="p-4 bg-white/60 backdrop-blur-sm">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">{lawyer.name}</h3>
+                        <p className="text-gray-700 mb-1">{lawyer.specialty}</p>
+                        <p className="text-gray-600 text-sm">{lawyer.location}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="grid md:grid-cols-3 gap-8 mt-20">
-              {[
-                { title: "Expert Lawyers", description: "Access to a network of verified, experienced attorneys" },
-                { title: "Easy Booking", description: "Schedule consultations with just a few clicks" },
-                { title: "Secure Platform", description: "Your information is protected with top-notch security" }
-              ].map((item, index) => (
-                <div key={index} className="bg-white/60 rounded-lg p-6 text-gray-800 shadow-md">
-                  <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-                  <p className="text-gray-600">{item.description}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-20 text-center">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">Why Choose FNDLWR?</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-                {[
-                  "Verified Professionals",
-                  "24/7 Support",
-                  "Transparent Pricing",
-                  "Tailored Matches",
-                  "Secure Communication",
-                  "Money-Back Guarantee"
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center bg-white/60 rounded-lg p-4 shadow-sm">
-                    <Check className="text-gray-800 mr-2" />
-                    <span className="text-gray-700">{item}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
-            </div>
-
-            <div className="mt-20 text-center">
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready to Find Your Lawyer?</h2>
-              <p className="text-xl text-gray-600 mb-8">Get started now and connect with a qualified lawyer in minutes.</p>
-              <Button size="lg" className="bg-gray-800 text-white hover:bg-gray-900 shadow-md">
-                Get Started
-              </Button>
-            </div>
+            )}
           </div>
         </main>
 
