@@ -1,10 +1,38 @@
 'use client'
 
+import { useState } from "react"
+import Image from "next/image"
 import { Search, MapPin, ArrowRight, Check, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+type Lawyer = {
+  id: number;
+  name: string;
+  specialty: string;
+  location: string;
+  imageurl: string;
+}
+
 export function CenteredGlassyGreyLandingPage() {
+  const [query, setQuery] = useState('')
+  const [location, setLocation] = useState('')
+  const [searchResults, setSearchResults] = useState<Lawyer[]>([])
+
+  const handleSearch = async () => {
+    try {
+      const response = await fetch(`/api/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`)
+      if (!response.ok) {
+        throw new Error('Search failed')
+      }
+      const data = await response.json()
+      setSearchResults(data)
+    } catch (error) {
+      console.error('Error searching lawyers:', error)
+      setSearchResults([])
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-300">
       <div className="backdrop-blur-sm bg-white/30 min-h-screen">
@@ -38,18 +66,56 @@ export function CenteredGlassyGreyLandingPage() {
               <div className="flex flex-col md:flex-row">
                 <div className="flex-grow flex items-center bg-white/80 rounded-lg p-2 mb-2 md:mb-0 md:mr-2 shadow-sm">
                   <Search className="text-gray-500 mr-2" />
-                  <Input className="bg-transparent border-none text-gray-800 placeholder-gray-500" placeholder="Legal issue or lawyer name" />
+                  <Input 
+                    className="bg-transparent border-none text-gray-800 placeholder-gray-500" 
+                    placeholder="Legal issue or lawyer name" 
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
                 </div>
                 <div className="flex-grow flex items-center bg-white/80 rounded-lg p-2 mb-2 md:mb-0 md:mr-2 shadow-sm">
                   <MapPin className="text-gray-500 mr-2" />
-                  <Input className="bg-transparent border-none text-gray-800 placeholder-gray-500" placeholder="Location" />
+                  <Input 
+                    className="bg-transparent border-none text-gray-800 placeholder-gray-500" 
+                    placeholder="Location" 
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
                 </div>
-                <Button className="bg-gray-800 text-white hover:bg-gray-900 shadow-sm">
+                <Button 
+                  className="bg-gray-800 text-white hover:bg-gray-900 shadow-sm"
+                  onClick={handleSearch}
+                >
                   Search
                   <ArrowRight className="ml-2" />
                 </Button>
               </div>
             </div>
+
+            {/* Display search results */}
+            {searchResults.length > 0 && (
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Search Results</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {searchResults.map((lawyer) => (
+                    <div key={lawyer.id} className="bg-white/80 rounded-lg p-4 shadow-md">
+                      <div className="mb-4 relative h-48 w-full">
+                        <Image
+                          src={`/lawyer-images/${lawyer.imageurl}`}
+                          alt={lawyer.name}
+                          layout="fill"
+                          objectFit="cover"
+                          className="rounded-md"
+                        />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-800">{lawyer.name}</h3>
+                      <p className="text-gray-600">{lawyer.specialty}</p>
+                      <p className="text-gray-600">{lawyer.location}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid md:grid-cols-3 gap-8 mt-20">
               {[
