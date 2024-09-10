@@ -34,7 +34,7 @@ export function CenteredGlassyGreyLandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-300">
+    <div className="min-h-screen bg-gradient-to-br from-pink-300 via-purple-300 to-blue-400">
       <div className="backdrop-blur-sm bg-white/30 min-h-screen">
         <header className="container mx-auto px-4 py-6">
           <nav className="flex justify-between items-center">
